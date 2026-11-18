@@ -44,15 +44,24 @@ jobs:
 
           s = p.read_text()
           lines = s.splitlines()
-
           lines[8] = "        for (y in (step until (frame.height - step)).step(step)) for (x in (step until (frame.width - step)).step(step)) {"
-
           s = "\n".join(lines) + "\n"
           s = re.sub(r'(?<![\w.])\.(\d+)', r'0.\1', s)
-
           p.write_text(s)
-          print("TableDetector.kt repaired successfully")
           PY
+
+      - name: Show KENO overlay source
+        shell: bash
+        run: |
+          FILE="project/app/src/main/java/com/keno/billiards/overlay/KenoOverlayService.kt"
+          echo "===== KENO_OVERLAY_SOURCE_START ====="
+          if [ -f "$FILE" ]; then
+            cat "$FILE"
+          else
+            echo "FILE NOT FOUND"
+            find project/app/src/main/java -iname "*OverlayService*"
+          fi
+          echo "===== KENO_OVERLAY_SOURCE_END ====="
 
       - name: Build APK
         run: |
