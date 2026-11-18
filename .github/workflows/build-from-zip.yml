@@ -1,4 +1,4 @@
-
+```yaml
 name: Build KENO from ZIP
 
 on:
@@ -32,6 +32,22 @@ jobs:
           test -n "$ZIP_FILE"
           mkdir -p project
           unzip -q "$ZIP_FILE" -d project
+
+      - name: Show TableDetector source
+        run: |
+          FILE="project/app/src/main/java/com/keno/billiards/core/TableDetector.kt"
+
+          echo "===== TABLE DETECTOR SOURCE ====="
+
+          if [ -f "$FILE" ]; then
+            nl -ba "$FILE" | head -n 35
+          else
+            echo "TableDetector.kt NIJE PRONADJEN!"
+            find project -iname '*TableDetector*'
+            exit 1
+          fi
+
+          echo "===== END TABLE DETECTOR SOURCE ====="
 
       - name: Fix MediaProjection crash
         run: |
@@ -105,3 +121,4 @@ jobs:
           name: KENO-APK
           path: project/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+```
