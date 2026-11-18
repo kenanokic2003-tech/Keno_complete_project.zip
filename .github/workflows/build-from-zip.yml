@@ -21,10 +21,12 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Gradle
+      - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
 
-      - name: Extract and fix KENO project
+      - name: Extract and repair KENO source
         shell: bash
         run: |
           ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
@@ -32,10 +34,25 @@ jobs:
           mkdir project
           unzip -q "$ZIP_FILE" -d project
 
-          TABLE_FILE="project/app/src/main/java/com/keno/billiards/core/TableDetector.kt"
-          test -f "$TABLE_FILE"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
 
-          sed -i 's/\* *\.035/* 0.035/g' "$TABLE_FILE"
+          p = Path("project/app/src/main/java/com/keno/billiards/core/TableDetector.kt")
+          if not p.exists():
+              raise SystemExit("TableDetector.kt not found")
+
+          s = p.read_text()
+          lines = s.splitlines()
+
+          lines[8] = "        for (y in (step until (frame.height - step)).step(step)) for (x in (step until (frame.width - step)).step(step)) {"
+
+          s = "\n".join(lines) + "\n"
+          s = re.sub(r'(?<![\w.])\.(\d+)', r'0.\1', s)
+
+          p.write_text(s)
+          print("TableDetector.kt repaired successfully")
+          PY
 
       - name: Build APK
         run: |
@@ -48,4 +65,3 @@ jobs:
           name: KENO-APK
           path: project/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
