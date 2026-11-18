@@ -1,4 +1,4 @@
-```yaml
+
 name: Build KENO from ZIP
 
 on:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -26,99 +26,34 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Extract KENO project
+      - name: Extract ZIP
+        shell: bash
         run: |
           ZIP_FILE=$(find . -maxdepth 1 -type f -iname '*.zip' -print -quit)
           test -n "$ZIP_FILE"
           mkdir -p project
           unzip -q "$ZIP_FILE" -d project
 
-      - name: Show TableDetector source
+      - name: Show TableDetector
+        shell: bash
         run: |
           FILE="project/app/src/main/java/com/keno/billiards/core/TableDetector.kt"
-
-          echo "===== TABLE DETECTOR SOURCE ====="
-
+          echo "===== TABLE DETECTOR ====="
           if [ -f "$FILE" ]; then
-            nl -ba "$FILE" | head -n 35
+            nl -ba "$FILE" | head -35
           else
-            echo "TableDetector.kt NIJE PRONADJEN!"
-            find project -iname '*TableDetector*'
+            find project -name 'TableDetector.kt'
             exit 1
           fi
-
-          echo "===== END TABLE DETECTOR SOURCE ====="
-
-      - name: Fix MediaProjection crash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path("project/app/src/main/java/com/keno/billiards/overlay/KenoOverlayService.kt")
-
-          if not p.exists():
-              raise SystemExit("KenoOverlayService.kt nije pronadjen!")
-
-          s = p.read_text()
-
-          if "registerCallback" not in s:
-              old = "private var projection:MediaProjection?=null"
-              new = old + "\n    private var projectionCallback: MediaProjection.Callback? = null"
-
-              if old not in s:
-                  raise SystemExit("Ne mogu pronaci projection deklaraciju!")
-
-              s = s.replace(old, new, 1)
-
-              old = "handler=Handler(thread!!.looper)"
-
-              new = """handler=Handler(thread!!.looper)
-
-                  projectionCallback = object : MediaProjection.Callback() {
-                      override fun onStop() {
-                          display?.release()
-                          display = null
-                          reader?.close()
-                          reader = null
-                          stopSelf()
-                      }
-                  }
-
-                  projection?.registerCallback(projectionCallback!!, handler)"""
-
-              if old not in s:
-                  raise SystemExit("Ne mogu pronaci mjesto za callback!")
-
-              s = s.replace(old, new, 1)
-
-              old = "try{projection?.stop()}catch(_:Exception){}"
-
-              new = """try {
-                      projectionCallback?.let {
-                          projection?.unregisterCallback(it)
-                      }
-                  } catch (_: Exception) {}
-                  try{projection?.stop()}catch(_:Exception){}"""
-
-              if old not in s:
-                  raise SystemExit("Ne mogu pronaci projection.stop()!")
-
-              s = s.replace(old, new, 1)
-
-              p.write_text(s)
-
-          print("MediaProjection callback provjeren i postavljen.")
-          PY
 
       - name: Build APK
         run: |
           cd project
           gradle --no-daemon assembleDebug
 
-      - name: Upload KENO APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: KENO-APK
           path: project/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-```
